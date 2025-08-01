@@ -1242,7 +1242,9 @@ dependencies = [
 name = "launch-tracker"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "env_logger",
+ "futures",
  "log",
  "tokio",
  "tonic",
