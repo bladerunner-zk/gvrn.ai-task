@@ -1,7 +1,6 @@
-use std::{collections::HashMap, env};
-use log::{error, info, warn};
+use std::collections::HashMap;
+use log::{error, info};
 use tonic::{
-    transport::ClientTlsConfig,
     service::Interceptor,
     Status,
 };
@@ -17,14 +16,24 @@ use yellowstone_grpc_proto::{
     },
 };
 
-const GRPC_ENDPOINT: &str = "http://134.119.192.123:10000";
-const RAYDIUM_LAUNCHLAB_PROGRAM: &str = "LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj";
-const LAUNCHLAB_INITIALIZE_DISCRIMINATOR: &[u8] = &[175, 175, 109, 31, 13, 152, 155, 237];
-const RAYDIUM_INIT_IDX: usize = 6;
+struct Launchpad {
+    program: &'static str,
+    discriminator: &'static [u8],
+    init_idx: usize,
+}
 
-const PUMP_FUN_PROGRAM: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-const PUMP_FUN_CREATE_DISCRIMINATOR: &[u8] = &[24, 30, 200, 40, 5, 28, 7, 119];
-const PUMP_FUN_INIT_IDX: usize = 6;
+const GRPC_ENDPOINT: &str = "http://134.119.192.123:10000";
+
+const RAYDIUM: Launchpad = Launchpad {
+    program: "LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj",
+    discriminator: &[175, 175, 109, 31, 13, 152, 155, 237],
+    init_idx: 6, // index of the 'initialize' instruction in the IDL
+};
+const PUMP_FUN: Launchpad = Launchpad {
+    program: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+    discriminator: &[24, 30, 200, 40, 5, 28, 7, 119],
+    init_idx: 6, // index of the 'create' instruction in the IDL
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -65,7 +74,7 @@ where
             account_include: vec![],
             account_exclude: vec![],
             account_required: vec![
-                RAYDIUM_LAUNCHLAB_PROGRAM.to_string(),
+                RAYDIUM.program.to_string(),
             ],
             vote: Some(false),
             failed: Some(false),
@@ -77,7 +86,7 @@ where
             account_include: vec![],
             account_exclude: vec![],
             account_required: vec![
-                PUMP_FUN_PROGRAM.to_string(),
+                PUMP_FUN.program.to_string(),
             ],
             vote: Some(false),
             failed: Some(false),
@@ -121,14 +130,14 @@ fn handle_message(msg: SubscribeUpdate) {
                         for instruction in &message.instructions {
                             let program_id = bs58::encode(&message.account_keys[instruction.program_id_index as usize]).into_string();
 
-                            if program_id == PUMP_FUN_PROGRAM && instruction.data.starts_with(&PUMP_FUN_CREATE_DISCRIMINATOR) {
-                                let base_mint_index = instruction.accounts[6] as usize;
+                            if program_id == PUMP_FUN.program && instruction.data.starts_with(&PUMP_FUN.discriminator) {
+                                let base_mint_index = instruction.accounts[PUMP_FUN.init_idx] as usize;
                                 let base_mint_pubkey = &message.account_keys[base_mint_index];
                                 info!("Pump.fun token created! CA: {}", bs58::encode(base_mint_pubkey).into_string());
                             }
 
-                            if program_id == RAYDIUM_LAUNCHLAB_PROGRAM && instruction.data.starts_with(&LAUNCHLAB_INITIALIZE_DISCRIMINATOR) {
-                                let base_mint_index = instruction.accounts[6] as usize;
+                            if program_id == RAYDIUM.program && instruction.data.starts_with(&RAYDIUM.discriminator) {
+                                let base_mint_index = instruction.accounts[PUMP_FUN.init_idx] as usize;
                                 let base_mint_pubkey = &message.account_keys[base_mint_index];
                                 info!("Raydium LaunchLab token launched! CA: {}", bs58::encode(base_mint_pubkey).into_string());
                             }
