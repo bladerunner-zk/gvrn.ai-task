@@ -53,7 +53,7 @@ fn handle_message(msg: SubscribeUpdate) {
 fn detect_launch(program_id: &str, instruction: &CompiledInstruction, message: &Message, tx_id: &String) {
     for launchpad in &[PUMP_FUN, RAYDIUM] {
         if program_id == launchpad.program && instruction.data.starts_with(launchpad.discriminator) {
-            let base_mint_index = instruction.accounts[launchpad.init_idx] as usize;
+            let base_mint_index = instruction.accounts[launchpad.account_idx] as usize;
             let base_mint_pubkey = &message.account_keys[base_mint_index];
             let ca = bs58::encode(base_mint_pubkey).into_string();
             let event = LaunchEvent {
