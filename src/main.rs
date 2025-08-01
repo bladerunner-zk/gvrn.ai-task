@@ -3,6 +3,8 @@ mod constants;
 mod launchpad;
 mod subscription;
 mod process_updates;
+mod event;
+mod mq;
 
 use client::setup_client;
 use subscription::send_subscription_request;
