@@ -1,4 +1,5 @@
 use crate::launchpad::{
+    Launchpad,
     PUMP_FUN,
     RAYDIUM,
 };
@@ -14,29 +15,13 @@ where
     let mut accounts_filter = HashMap::new();
     accounts_filter.insert(
         "Raydium launchpad monitor".to_string(),
-        SubscribeRequestFilterTransactions {
-            account_include: vec![],
-            account_exclude: vec![],
-            account_required: vec![
-                RAYDIUM.program.to_string(),
-            ],
-            vote: Some(false),
-            failed: Some(false),
-            signature: None,
-        });
+        filter_for_launchpad(&RAYDIUM),
+    );
     accounts_filter.insert(
         "Pump.fun monitor".to_string(),
-        SubscribeRequestFilterTransactions {
-            account_include: vec![],
-            account_exclude: vec![],
-            account_required: vec![
-                PUMP_FUN.program.to_string(),
-            ],
-            vote: Some(false),
-            failed: Some(false),
-            signature: None,
-        },
+        filter_for_launchpad(&PUMP_FUN),
     );
+
     tx.send(SubscribeRequest {
         transactions: accounts_filter,
         commitment: Some(CommitmentLevel::Processed as i32),
@@ -45,4 +30,15 @@ where
     .await?;
 
     Ok(())
+}
+
+fn filter_for_launchpad(launchpad: &Launchpad) -> SubscribeRequestFilterTransactions {
+    SubscribeRequestFilterTransactions {
+        account_include: vec![],
+        account_exclude: vec![],
+        account_required: vec![launchpad.program.to_string()],
+        vote: Some(false),
+        failed: Some(false),
+        signature: None,
+    }
 }
