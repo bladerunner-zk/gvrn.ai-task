@@ -5,7 +5,7 @@ use crate::launchpad::{
 use futures::StreamExt;
 use yellowstone_grpc_proto::{
     geyser::SubscribeUpdate,
-    prelude::subscribe_update::UpdateOneof,
+    prelude::{subscribe_update::UpdateOneof, CompiledInstruction, Message},
 };
 use tonic::Status;
 use log::{error, info};
@@ -36,23 +36,22 @@ fn handle_message(msg: SubscribeUpdate) {
                     if let Some(message) = &tx.message {
                         for instruction in &message.instructions {
                             let program_id = bs58::encode(&message.account_keys[instruction.program_id_index as usize]).into_string();
-
-                            if program_id == PUMP_FUN.program && instruction.data.starts_with(&PUMP_FUN.discriminator) {
-                                let base_mint_index = instruction.accounts[PUMP_FUN.init_idx] as usize;
-                                let base_mint_pubkey = &message.account_keys[base_mint_index];
-                                info!("Pump.fun token created! CA: {}", bs58::encode(base_mint_pubkey).into_string());
-                            }
-
-                            if program_id == RAYDIUM.program && instruction.data.starts_with(&RAYDIUM.discriminator) {
-                                let base_mint_index = instruction.accounts[PUMP_FUN.init_idx] as usize;
-                                let base_mint_pubkey = &message.account_keys[base_mint_index];
-                                info!("Raydium LaunchLab token launched! CA: {}", bs58::encode(base_mint_pubkey).into_string());
-                            }
+                            detect_launch(&program_id, instruction, message);
                         }
                     }
                 }
             }
         }
         _ => {}
+    }
+}
+
+fn detect_launch(program_id: &str, instruction: &CompiledInstruction, message: &Message) {
+    for launchpad in &[PUMP_FUN, RAYDIUM] {
+        if program_id == launchpad.program && instruction.data.starts_with(launchpad.discriminator) {
+            let base_mint_index = instruction.accounts[launchpad.init_idx] as usize;
+            let base_mint_pubkey = &message.account_keys[base_mint_index];
+            info!("{} token created! CA: {}", launchpad.name, bs58::encode(base_mint_pubkey).into_string());
+        }
     }
 }
