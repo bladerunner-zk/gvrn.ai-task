@@ -18,6 +18,8 @@ use yellowstone_grpc_proto::{
 };
 
 const GRPC_ENDPOINT: &str = "http://134.119.192.123:10000";
+const RAYDIUM_LAUNCHLAB_PROGRAM: &str = "LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj";
+const LAUNCHLAB_INITIALIZE_DISCRIMINATOR: &[u8] = &[175, 175, 109, 31, 13, 152, 155, 237];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,11 +55,13 @@ where
 {
     let mut accounts_filter = HashMap::new();
     accounts_filter.insert(
-        "account_monitor".to_string(),
+        "Raydium launchpad monitor".to_string(),
         SubscribeRequestFilterTransactions {
             account_include: vec![],
             account_exclude: vec![],
-            account_required: vec![],
+            account_required: vec![
+                RAYDIUM_LAUNCHLAB_PROGRAM.to_string(),
+            ],
             vote: Some(false),
             failed: Some(false),
             signature: None,
@@ -94,8 +98,20 @@ fn handle_message(msg: SubscribeUpdate) {
     match msg.update_oneof {
         Some(UpdateOneof::Transaction(tx_update)) => {
             if let Some(tx_info) = tx_update.transaction {
-                let tx_id = bs58::encode(&tx_info.signature).into_string();
-                info!("Transaction signature: {}", tx_id);
+                // let tx_id = bs58::encode(&tx_info.signature).into_string();
+                if let Some(tx) = &tx_info.transaction {
+                    if let Some(message) = &tx.message {
+                        for instruction in &message.instructions {
+                            let program_id = bs58::encode(&message.account_keys[instruction.program_id_index as usize]).into_string();
+
+                            if program_id == RAYDIUM_LAUNCHLAB_PROGRAM && instruction.data.starts_with(&LAUNCHLAB_INITIALIZE_DISCRIMINATOR) {
+                                let base_mint_index = instruction.accounts[6] as usize;
+                                let base_mint_pubkey = &message.account_keys[base_mint_index];
+                                info!("Raydium LaunchLab token launched! CA: {}", bs58::encode(base_mint_pubkey).into_string());
+                            }
+                        }
+                    }
+                }
             }
         }
         _ => {}
